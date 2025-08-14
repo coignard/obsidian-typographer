@@ -1,0 +1,13 @@
+{
+    "id": "typographer",
+    "name": "Typographer",
+    "version": "1.0.0",
+    "minAppVersion": "1.8.10",
+    "description": "Enhances typography with smart quotes, custom text replacements and auto-pairing characters.",
+    "author": "René Coignard",
+    "authorUrl": "https://github.com/coignard",
+    "isDesktopOnly": false,
+    "fundingUrl": {
+        "Ko-fi": "https://ko-fi.com/coignard"
+    }
+}
