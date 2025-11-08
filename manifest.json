@@ -1,7 +1,7 @@
 {
     "id": "typographer",
     "name": "Typographer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "minAppVersion": "1.8.10",
     "description": "Enhances typography with smart quotes, custom text replacements and auto-pairing characters.",
     "author": "René Coignard",

@@ -239,11 +239,10 @@ class TypographerSettingTab extends PluginSettingTab {
     }
 
     renderRuleSection(containerEl, sectionTitle, sectionDescription, rulesArray, fieldPlaceholders, addRuleCallback) {
-        containerEl.createEl("h2", { text: sectionTitle }).style.setProperty("margin-top", "24px", "important");
-        containerEl.createEl("p", {
-            text: sectionDescription,
-            cls: "setting-item-description"
-        }).style.marginTop = '0px';
+        new Setting(containerEl)
+            .setName(sectionTitle)
+            .setDesc(sectionDescription)
+            .setHeading();
 
         rulesArray.forEach((rule, ruleIndex) => {
             const ruleSetting = new Setting(containerEl);
