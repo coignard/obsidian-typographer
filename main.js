@@ -1,5 +1,7 @@
 const { App, Plugin, PluginSettingTab, Setting } = require("obsidian");
 const { EditorState, EditorSelection } = require("@codemirror/state");
+const { EditorView } = require("@codemirror/view");
+const { isolateHistory } = require("@codemirror/commands");
 const { syntaxTree, tokenClassNodeProp } = require("@codemirror/language");
 
 const DEFAULT_SETTINGS = {
@@ -27,6 +29,7 @@ module.exports = class TypographerPlugin extends Plugin {
         this.addSettingTab(new TypographerSettingTab(this.app, this));
         this.buildReplacementMaps();
         this.registerEditorExtension(this.createTransactionFilter());
+        this.registerEditorExtension(this.createReplacementInputHandler());
     }
 
     buildReplacementMaps() {
@@ -122,26 +125,6 @@ module.exports = class TypographerPlugin extends Plugin {
                     return;
                 }
 
-                const replacementRules = this.characterReplacementMap[triggerCharacter];
-                if (replacementRules) {
-                    const precedingText = transaction.startState.doc.sliceString(0, fromPos);
-                    for (const rule of replacementRules) {
-                        if (precedingText.endsWith(rule.precedingContext)) {
-                            modifiedChanges.push({
-                                from: fromPos - rule.precedingContext.length,
-                                to: toPos,
-                                insert: rule.to
-                            });
-                            const selectionAdjustment = rule.from.length - rule.to.length;
-                            updatedSelection = EditorSelection.single(
-                                transaction.selection.main.head - selectionAdjustment
-                            );
-                            hasModifications = true;
-                            return;
-                        }
-                    }
-                }
-
                 modifiedChanges.push({ from: fromPos, to: toPos, insert: insertedContent });
             });
 
@@ -150,6 +133,40 @@ module.exports = class TypographerPlugin extends Plugin {
             }
 
             return transaction;
+        });
+    }
+
+    // Text replacements are dispatched as two transactions: the typed character,
+    // then the replacement as its own history event. That way undo restores
+    // the original characters (e.g. "->") rather than removing them.
+    createReplacementInputHandler() {
+        return EditorView.inputHandler.of((view, fromPos, toPos, insertedText) => {
+            if (insertedText.length !== 1 || view.state.selection.ranges.length > 1) return false;
+            if (this.characterPairingMap[insertedText]) return false;
+
+            const replacementRules = this.characterReplacementMap[insertedText];
+            if (!replacementRules) return false;
+
+            const tokenProperties = syntaxTree(view.state).resolveInner(fromPos, 1).type.prop(tokenClassNodeProp);
+            if (tokenProperties && IGNORED_SYNTAX_NODES.test(tokenProperties)) return false;
+
+            const precedingText = view.state.doc.sliceString(0, fromPos);
+            const rule = replacementRules.find(rule => precedingText.endsWith(rule.precedingContext));
+            if (!rule) return false;
+
+            view.dispatch({
+                changes: { from: fromPos, to: toPos, insert: insertedText },
+                selection: EditorSelection.single(fromPos + insertedText.length),
+                userEvent: "input.type",
+            });
+
+            const replacementStart = fromPos - rule.precedingContext.length;
+            view.dispatch({
+                changes: { from: replacementStart, to: fromPos + insertedText.length, insert: rule.to },
+                selection: EditorSelection.single(replacementStart + rule.to.length),
+                annotations: isolateHistory.of("full"),
+            });
+            return true;
         });
     }
 
